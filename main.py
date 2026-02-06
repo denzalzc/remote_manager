@@ -74,28 +74,42 @@ def chdir():
         path = os.getcwd()
     
     try:
+        # Обработка специальных путей
         if path == "~":
             path = os.path.expanduser("~")
         elif path.startswith("~/"):
             path = os.path.expanduser(path)
         
+        # Получаем абсолютный путь
         if not os.path.isabs(path):
             current_dir = os.getcwd()
             path = os.path.abspath(os.path.join(current_dir, path))
         
+        # Нормализуем путь
         path = os.path.normpath(path)
         
+        # Проверяем существует ли директория
         if os.path.isdir(path):
             os.chdir(path)
             files = os.listdir(path)
             
-            dirs = [f for f in files if os.path.isdir(os.path.join(path, f))]
-            files_list = [f for f in files if os.path.isfile(os.path.join(path, f))]
+            # Добавляем / к папкам
+            files_with_type = []
+            for f in files:
+                full_path = os.path.join(path, f)
+                if os.path.isdir(full_path):
+                    files_with_type.append(f + '/')  # Папки с / на конце
+                else:
+                    files_with_type.append(f)        # Файлы без /
+            
+            # Сортируем: сначала папки, потом файлы
+            dirs = [f for f in files_with_type if f.endswith('/')]
+            files_list = [f for f in files_with_type if not f.endswith('/')]
             
             sorted_files = sorted(dirs) + sorted(files_list)
             
             return jsonify({
-                "current_path": os.getcwd(),
+                "current_path": os.getcwd(),  # Абсолютный путь
                 "files": sorted_files
             })
         else:

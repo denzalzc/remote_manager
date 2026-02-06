@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,31 +12,37 @@
             box-sizing: border-box;
             font-family: monospace;
         }
+
         body {
             background: #1e1e1e;
             color: #d4d4d4;
             height: 100vh;
             overflow: hidden;
         }
+
         .container {
             display: flex;
             height: 100%;
         }
+
         .panel {
             flex: 1;
             border: 1px solid #333;
             display: flex;
             flex-direction: column;
         }
+
         .header {
             background: #2d2d30;
             padding: 10px;
             border-bottom: 1px solid #3e3e42;
             font-weight: bold;
         }
+
         .console {
             background: #0e0e0e;
         }
+
         .console-options {
             display: flex;
             align-items: center;
@@ -43,15 +50,18 @@
             background: #252526;
             border-bottom: 1px solid #3e3e42;
         }
+
         .checkbox-label {
             display: flex;
             align-items: center;
             cursor: pointer;
             font-size: 14px;
         }
+
         .checkbox-label input {
             margin-right: 8px;
         }
+
         .console-output {
             flex: 1;
             padding: 15px;
@@ -59,15 +69,18 @@
             white-space: pre-wrap;
             font-size: 14px;
         }
+
         .console-input {
             display: flex;
             border-top: 1px solid #333;
             background: #0e0e0e;
         }
+
         .prompt {
             padding: 10px;
             background: #2d2d30;
         }
+
         .console-input input {
             flex: 1;
             background: transparent;
@@ -77,6 +90,7 @@
             font-size: 14px;
             outline: none;
         }
+
         .path-container {
             display: flex;
             padding: 5px 10px;
@@ -84,6 +98,7 @@
             border-bottom: 1px solid #3e3e42;
             align-items: center;
         }
+
         .back-button {
             background: #3e3e42;
             border: 1px solid #3e3e42;
@@ -93,9 +108,11 @@
             cursor: pointer;
             font-size: 16px;
         }
+
         .back-button:hover {
             background: #007acc;
         }
+
         .path-input {
             flex: 1;
             background: #1e1e1e;
@@ -105,6 +122,7 @@
             font-size: 14px;
             outline: none;
         }
+
         .path-button {
             background: #007acc;
             border: 1px solid #007acc;
@@ -113,14 +131,17 @@
             margin-left: 5px;
             cursor: pointer;
         }
+
         .path-button:hover {
             background: #0062a3;
         }
+
         .file-list {
             flex: 1;
             overflow-y: auto;
             padding: 10px;
         }
+
         .file-item {
             padding: 8px;
             display: flex;
@@ -128,17 +149,21 @@
             cursor: pointer;
             border-radius: 3px;
         }
+
         .file-item:hover {
             background: #2a2d2e;
         }
+
         .file-item.selected {
             background: #37373d;
         }
+
         .file-icon {
             margin-right: 10px;
             width: 20px;
             text-align: center;
         }
+
         .context-menu {
             position: absolute;
             background: #2d2d30;
@@ -146,13 +171,16 @@
             display: none;
             z-index: 1000;
         }
+
         .context-item {
             padding: 8px 20px;
             cursor: pointer;
         }
+
         .context-item:hover {
             background: #3e3e42;
         }
+
         .modal {
             display: none;
             position: fixed;
@@ -160,11 +188,12 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0, 0, 0, 0.8);
             z-index: 2000;
             align-items: center;
             justify-content: center;
         }
+
         .modal-content {
             background: #1e1e1e;
             border: 1px solid #3e3e42;
@@ -173,6 +202,7 @@
             display: flex;
             flex-direction: column;
         }
+
         .modal-header {
             background: #2d2d30;
             padding: 10px;
@@ -181,11 +211,13 @@
             justify-content: space-between;
             align-items: center;
         }
+
         .modal-body {
             flex: 1;
             padding: 0;
             overflow: hidden;
         }
+
         .modal-textarea {
             width: 100%;
             height: 100%;
@@ -198,6 +230,7 @@
             resize: none;
             outline: none;
         }
+
         .modal-footer {
             background: #2d2d30;
             padding: 10px;
@@ -206,6 +239,7 @@
             justify-content: flex-end;
             gap: 10px;
         }
+
         .modal-button {
             padding: 8px 20px;
             cursor: pointer;
@@ -213,11 +247,13 @@
             background: #007acc;
             color: white;
         }
+
         .modal-button.cancel {
             background: #3e3e42;
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="panel console">
@@ -299,8 +335,8 @@
                     const data = await response.json();
                     if (data.files && data.current_path) {
                         files = data.files.map(fileName => ({
-                            name: fileName,
-                            type: !fileName.includes('.') ? 'directory' : 'file',
+                            name: fileName.endsWith('/') ? fileName.slice(0, -1) : fileName,
+                            type: fileName.endsWith('/') ? 'directory' : 'file',
                             size: ''
                         }));
                         pathInput.value = data.current_path;
@@ -344,7 +380,9 @@
 
         async function saveFileContent(filefullpath, content) {
             try {
-                const response = await fetch(`/api/editfile/save?filefullpath=${encodeURIComponent(filefullpath)}&content=${encodeURIComponent(content)}`);
+                const response = await fetch(
+                    `/api/editfile/save?filefullpath=${encodeURIComponent(filefullpath)}&content=${encodeURIComponent(content)}`
+                    );
                 if (response.ok) {
                     return await response.text();
                 } else {
@@ -361,12 +399,14 @@
                 const div = document.createElement('div');
                 div.className = 'file-item';
                 div.dataset.name = file.name;
-                div.innerHTML = `<div class="file-icon">${file.type === 'directory' ? '📁' : '📄'}</div><div style="flex:1">${file.name}</div><div>${file.size || ''}</div>`;
+                div.innerHTML =
+                    `<div class="file-icon">${file.type === 'directory' ? '📁' : '📄'}</div><div style="flex:1">${file.name}</div><div>${file.size || ''}</div>`;
                 div.addEventListener('click', () => selectFile(file.name));
                 div.addEventListener('dblclick', () => {
                     if (file.type === 'directory') {
                         const currentPath = pathInput.value;
-                        const newPath = currentPath.endsWith('/') ? currentPath + file.name : currentPath + '/' + file.name;
+                        const newPath = currentPath.endsWith('/') ? currentPath + file.name :
+                            currentPath + '/' + file.name;
                         if (linkToFiles.checked) {
                             processCommand(`cd ${newPath}`);
                         } else {
@@ -374,7 +414,8 @@
                         }
                     } else {
                         const currentPath = pathInput.value;
-                        const fullPath = currentPath.endsWith('/') ? currentPath + file.name : currentPath + '/' + file.name;
+                        const fullPath = currentPath.endsWith('/') ? currentPath + file.name :
+                            currentPath + '/' + file.name;
                         openFileForEditing(fullPath);
                     }
                 });
@@ -430,7 +471,8 @@
             const action = e.target.dataset.action;
             if (!action || !selectedFile) return;
             const currentPath = pathInput.value;
-            const fullPath = currentPath.endsWith('/') ? currentPath + selectedFile : currentPath + '/' + selectedFile;
+            const fullPath = currentPath.endsWith('/') ? currentPath + selectedFile : currentPath + '/' +
+                selectedFile;
             if (action === 'delete') {
                 if (confirm(`Удалить ${selectedFile}?`)) {
                     const result = await fileOperation(fullPath, 'delete');
@@ -447,7 +489,8 @@
             } else if (action === 'mkdir') {
                 const folderName = prompt('Имя новой папки:', 'new_folder');
                 if (folderName) {
-                    const newFolderPath = currentPath.endsWith('/') ? currentPath + folderName : currentPath + '/' + folderName;
+                    const newFolderPath = currentPath.endsWith('/') ? currentPath + folderName :
+                        currentPath + '/' + folderName;
                     const result = await fileOperation(newFolderPath, 'mkdir');
                     addToConsole(result);
                     loadFiles(currentPath);
@@ -466,7 +509,9 @@
             try {
                 const result = await sendToFlask(cmd);
                 addToConsole(result);
-                if (linkToFiles.checked && (cmd.trim().startsWith('cd ') || cmd.trim().startsWith('mkdir ') || cmd.trim().startsWith('rm ') || cmd.trim().startsWith('touch ') || cmd.trim().startsWith('mv ') || cmd.trim().startsWith('cp '))) {
+                if (linkToFiles.checked && (cmd.trim().startsWith('cd ') || cmd.trim().startsWith('mkdir ') || cmd
+                        .trim().startsWith('rm ') || cmd.trim().startsWith('touch ') || cmd.trim().startsWith(
+                        'mv ') || cmd.trim().startsWith('cp '))) {
                     const match = result.match(/Каталог изменен на: (.+)/);
                     if (match && match[1]) {
                         pathInput.value = match[1];
@@ -530,4 +575,5 @@
         loadFiles(pathInput.value);
     </script>
 </body>
+
 </html>
