@@ -16,6 +16,7 @@ app = Flask(__name__)
 
 ALLOWED_IPS = {
     '213.156.210.18',
+    '192.168.1.108'
 }
 
 def gen_api_key():
@@ -118,8 +119,6 @@ def ip_whitelist(f):
         elif request.headers.get('X-Real-IP'):
             client_ip = request.headers.get('X-Real-IP')
         
-        info(f"Попытка доступа от IP: {client_ip}")
-        
         if not check_ip(client_ip):
             fatl(f"Отказано в доступе для IP: {client_ip}")
             if request.path.startswith('/api/'):
@@ -174,20 +173,26 @@ def comm():
             return f"Ошибка выполнения cd: {str(e)}"
     
     try:
+        encoding = 'cp866' if os.name == 'nt' else 'utf-8'
+        
         result = subprocess.run(
             command,
             shell=True,
             capture_output=True, 
-            text=True, 
-            encoding='utf-8',
+            text=False,
             cwd=os.getcwd()
         )
         
+        stdout = result.stdout.decode(encoding, errors='replace')
+        stderr = result.stderr.decode(encoding, errors='replace')
+        
         if result.returncode == 0:
-            return result.stdout if result.stdout else "Команда выполнена (нет вывода)"
+            return stdout if stdout.strip() else "Команда выполнена (нет вывода)"
         else:
-            return f"Ошибка (код: {result.returncode}): {result.stderr}"
+            return f"Ошибка (код: {result.returncode}): {stderr}"
             
+    except UnicodeDecodeError as e:
+        return f"Ошибка декодирования вывода: {str(e)}"
     except Exception as e:
         return f"Ошибка выполнения: {str(e)}"
 
@@ -355,4 +360,4 @@ def forbidden(e):
 
 if __name__ == '__main__':
     info(f"Allowed IPs: {ALLOWED_IPS}")
-    app.run(host='77.222.63.95', port=5000, debug=False)
+    app.run(host='192.168.1.108', port=5000, debug=False)

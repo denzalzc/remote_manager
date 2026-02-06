@@ -551,7 +551,10 @@
 
         function goBack() {
             const currentPath = pathInput.value;
-            const lastSlash = currentPath.lastIndexOf('/');
+            let lastSlash = currentPath.lastIndexOf('/');
+            if (lastSlash == -1) {
+                lastSlash = currentPath.lastIndexOf('\\');
+            }
             if (lastSlash > 0) {
                 const parentPath = currentPath.substring(0, lastSlash);
                 if (linkToFiles.checked) {
