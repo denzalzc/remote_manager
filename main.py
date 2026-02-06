@@ -1,5 +1,11 @@
 from flask import Flask, render_template, request
+from termcolor import colored
 import subprocess, os
+
+def warn(text: str): print(colored(text, 'yellow'))
+def succ(text: str): print(colored(text, 'green'))
+def fatl(text: str): print(colored(text, 'red'))
+def info(text: str): print(colored(text, 'blue'))
 
 
 app = Flask(__name__)
@@ -36,6 +42,16 @@ def chdir():
     dir_path = request.args.get('text')
 
     return os.listdir(dir_path)
+
+@app.route('/api/operonfiles')
+def chdir():
+    file_full_path = request.args.get('filefullpath')
+    operation = request.args.get('oper')
+
+    info(file_full_path)
+    info(operation)
+
+    return 'kek'
 
 
 app.run(host='77.222.63.95', port=5000, debug=True)
