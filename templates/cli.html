@@ -69,22 +69,22 @@
             overflow-y: auto;
             white-space: pre-wrap;
             font-size: 14px;
-            position: relative;
         }
 
-        .console-input {
+        .console-input-wrapper {
+            position: relative;
             display: flex;
             border-top: 1px solid #333;
             background: #0e0e0e;
-            position: relative;
         }
 
         .prompt {
             padding: 10px;
             background: #2d2d30;
+            z-index: 2;
         }
 
-        .console-input input {
+        .console-input {
             flex: 1;
             background: transparent;
             border: none;
@@ -92,6 +92,8 @@
             padding: 10px;
             font-size: 14px;
             outline: none;
+            position: relative;
+            z-index: 2;
         }
 
         .autocomplete-suggestion {
@@ -101,6 +103,8 @@
             color: #666;
             pointer-events: none;
             font-size: 14px;
+            z-index: 1;
+            white-space: pre;
         }
 
         .path-container {
@@ -276,7 +280,7 @@
                 </label>
             </div>
             <div id="consoleOutput" class="console-output">Добро пожаловать!</div>
-            <div class="console-input">
+            <div class="console-input-wrapper">
                 <div class="prompt">$</div>
                 <input type="text" id="consoleInput" placeholder="Введите команду..." autofocus>
                 <div id="autocompleteSuggestion" class="autocomplete-suggestion"></div>
@@ -335,6 +339,28 @@
         const cancelEdit = document.getElementById('cancelEdit');
         const saveFile = document.getElementById('saveFile');
         const autocompleteSuggestion = document.getElementById('autocompleteSuggestion');
+
+        function saveHistoryToStorage() {
+            try {
+                localStorage.setItem('commandHistory', JSON.stringify(commandHistory));
+            } catch (e) {
+                console.log('Не удалось сохранить историю:', e);
+            }
+        }
+
+        function loadHistoryFromStorage() {
+            try {
+                const saved = localStorage.getItem('commandHistory');
+                if (saved) {
+                    commandHistory = JSON.parse(saved);
+                    historyIndex = commandHistory.length;
+                }
+            } catch (e) {
+                console.log('Не удалось загрузить историю:', e);
+            }
+        }
+
+        loadHistoryFromStorage();
 
         async function sendToFlask(command) {
             try {
@@ -529,7 +555,7 @@
             }
 
             const matchingCommand = commandHistory
-                .filter(cmd => cmd.startsWith(input))
+                .filter(cmd => cmd.toLowerCase().startsWith(input.toLowerCase()))
                 .sort()
                 .shift();
 
@@ -546,7 +572,14 @@
 
             addToConsole(`$ ${cmd}`);
 
-            commandHistory.push(cmd);
+            if (commandHistory[commandHistory.length - 1] !== cmd) {
+                commandHistory.push(cmd);
+                if (commandHistory.length > 100) {
+                    commandHistory.shift();
+                }
+                saveHistoryToStorage();
+            }
+
             historyIndex = commandHistory.length;
             currentInput = '';
             autocompleteSuggestion.textContent = '';
@@ -582,31 +615,32 @@
         consoleInput.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowUp') {
                 e.preventDefault();
-                if (historyIndex > 0) {
-                    if (historyIndex === commandHistory.length) {
-                        currentInput = consoleInput.value;
-                    }
-                    historyIndex--;
-                    consoleInput.value = commandHistory[historyIndex];
-                    updateAutocomplete();
+                if (commandHistory.length === 0) return;
+
+                if (historyIndex === commandHistory.length) {
+                    currentInput = consoleInput.value;
                 }
+
+                if (historyIndex > 0) {
+                    historyIndex--;
+                }
+
+                consoleInput.value = commandHistory[historyIndex];
+                updateAutocomplete();
             } else if (e.key === 'ArrowDown') {
                 e.preventDefault();
+                if (commandHistory.length === 0) return;
+
                 if (historyIndex < commandHistory.length - 1) {
                     historyIndex++;
                     consoleInput.value = commandHistory[historyIndex];
-                    updateAutocomplete();
                 } else if (historyIndex === commandHistory.length - 1) {
                     historyIndex = commandHistory.length;
                     consoleInput.value = currentInput;
-                    updateAutocomplete();
                 }
-            } else if (e.key === 'ArrowRight' && autocompleteSuggestion.textContent) {
-                e.preventDefault();
-                consoleInput.value += autocompleteSuggestion.textContent;
-                autocompleteSuggestion.textContent = '';
-                consoleInput.setSelectionRange(consoleInput.value.length, consoleInput.value.length);
-            } else if (e.key === 'Tab' && autocompleteSuggestion.textContent) {
+
+                updateAutocomplete();
+            } else if ((e.key === 'ArrowRight' || e.key === 'Tab') && autocompleteSuggestion.textContent) {
                 e.preventDefault();
                 consoleInput.value += autocompleteSuggestion.textContent;
                 autocompleteSuggestion.textContent = '';
