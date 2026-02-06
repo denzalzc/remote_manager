@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>🔐 API Key Required</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            text-align: center;
+            border: 2px solid #4CAF50;
+            padding: 40px;
+            border-radius: 10px;
+            background: #2d2d30;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        h1 {
+            color: #4CAF50;
+            margin-bottom: 20px;
+        }
+
+        .key-input {
+            font-family: monospace;
+            background: #3e3e42;
+            color: #d4d4d4;
+            border: 1px solid #555;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            width: 100%;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .key-input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        .btn {
+            font-family: monospace;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            background: #45a049;
+        }
+
+        .message {
+            margin-top: 15px;
+            font-size: 14px;
+            min-height: 20px;
+        }
+
+        .success {
+            color: #4CAF50;
+        }
+
+        .error {
+            color: #ff4444;
+        }
+
+        .info {
+            color: #888;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔐 API Key Required</h1>
+        <p>Enter your API key to access the server:</p>
+
+        <input type="text" id="apiKeyInput" class="key-input" placeholder="Enter API key..." autocomplete="off"
+            spellcheck="false">
+
+        <button id="saveBtn" class="btn">Save API Key</button>
+
+        <div id="message" class="message"></div>
+
+        <div class="info">
+            Key will be saved in browser's LocalStorage<br>
+            as <code>RSM_OTP</code>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const apiKeyInput = document.getElementById('apiKeyInput');
+            const saveBtn = document.getElementById('saveBtn');
+            const message = document.getElementById('message');
+
+            // Фокус на поле ввода
+            apiKeyInput.focus();
+
+            // Обработчик нажатия Enter
+            apiKeyInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    saveApiKey();
+                }
+            });
+
+            // Обработчик клика на кнопку
+            saveBtn.addEventListener('click', saveApiKey);
+
+            function saveApiKey() {
+                const apiKey = apiKeyInput.value.trim();
+
+                if (!apiKey) {
+                    showMessage('Please enter API key', 'error');
+                    return;
+                }
+
+                try {
+                    // Сохраняем в LocalStorage
+                    localStorage.setItem('RSM_OTP', apiKey);
+                    showMessage('✅ API key saved successfully!', 'success');
+
+                    // Через 1 секунду переходим на главную страницу
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
+
+                } catch (e) {
+                    showMessage('❌ Error saving API key: ' + e.message, 'error');
+                }
+            }
+
+            function showMessage(text, type) {
+                message.textContent = text;
+                message.className = 'message ' + type;
+            }
+        });
+    </script>
+</body>
+
+</html>

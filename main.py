@@ -39,7 +39,9 @@ def require_api_key(f):
 
         api_key = request.headers.get('E-SSH-LS')
         if not api_key or api_key != allowed_api_key:
-            return "Permission denied: Your IP is not whitelisted", 403
+            if request.path.startswith('/api/'):
+                return "Permission denied: You not passed check.", 403
+            return render_template('request_api_key.html'), 403
     
         return f(*args, **kwargs)
     
