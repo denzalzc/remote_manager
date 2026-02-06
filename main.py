@@ -1,12 +1,12 @@
 from flask import Flask, render_template, request
-import subprocess
+import subprocess, os
 
 
 app = Flask(__name__)
 
 @app.route("/")
 def index():
-    return render_template('cli.html')
+    return render_template('cli.html', start_path=os.getcwd())
 
 @app.route('/api/comm')
 def comm():
@@ -30,6 +30,12 @@ def comm():
         return f"Ошибка: команда '{cmd_name}' не найдена"
     except Exception as e:
         return f"Ошибка выполнения: {str(e)}"
+
+@app.route('/api/chdir')
+def chdir():
+    command = request.args.get('text')
+
+    return 'kek'
 
 
 app.run(host='77.222.63.95', port=5000, debug=True)
