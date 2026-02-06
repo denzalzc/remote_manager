@@ -19,11 +19,9 @@ ALLOWED_IPS = {
 }
 
 def gen_api_key():
-    fatl('CALLED')
     with open('tg_data', 'r') as tg_key_file:
         all_symbols = string.ascii_letters + string.digits
         random_key = "".join(random.choices(all_symbols, k=10))
-        info(random_key)
 
         bot_apikey, chat_id = tg_key_file.read().strip().split('/')
         bot = TeleBot(bot_apikey)
@@ -37,10 +35,8 @@ def require_api_key(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
 
-        api_key = request.headers.get('E-SSH-LS')
-        info(request.headers)
-        warn(f"API from user: {api_key}")
-        warn(f"API from server memory {allowed_api_key}")
+        api_key = request.headers.get('E-SSH-LS') or request.args.get('svomqdpz_9_1_1')
+
         if not api_key or api_key != allowed_api_key:
             if request.path.startswith('/api/'):
                 return "Permission denied: You not passed check.", 403

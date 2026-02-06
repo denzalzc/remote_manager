@@ -139,7 +139,7 @@
 
                     // Через 1 секунду переходим на главную страницу
                     setTimeout(() => {
-                        window.location.href = '/';
+                        window.location.href = `/?api_key=${encodeURIComponent(apiKey)}`;
                     }, 1000);
 
                 } catch (e) {
