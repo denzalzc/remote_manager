@@ -350,4 +350,4 @@ def forbidden(e):
 
 if __name__ == '__main__':
     info(f"Allowed IPs: {ALLOWED_IPS}")
-    app.run(host='77.222.63.95', port=5000, debug=True)
+    app.run(host='77.222.63.95', port=5000, debug=False)
