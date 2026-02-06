@@ -10,66 +10,81 @@ def info(text: str): print(colored(text, 'blue'))
 
 app = Flask(__name__)
 
-# Белый список разрешенных IP-адресов
 ALLOWED_IPS = {
-    '127.0.0.1',
-    '192.168.1.0/24',
     '213.156.210.18',
 }
 
 def check_ip(ip):
-    """
-    Проверяет, находится ли IP в белом списке.
-    Поддерживает CIDR нотацию (например, 192.168.1.0/24)
-    """
     def ip_to_int(ip):
-        parts = ip.split('.')
-        return (int(parts[0]) << 24) + (int(parts[1]) << 16) + (int(parts[2]) << 8) + int(parts[3])
+        try:
+            parts = ip.split('.')
+            if len(parts) != 4:
+                return None
+                
+            result = 0
+            for i, part in enumerate(parts):
+                if not part.isdigit():
+                    return None
+                    
+                num = int(part)
+                if num < 0 or num > 255:
+                    return None
+                    
+                shift = 24 - (i * 8)
+                result += (num << shift)
+            return result
+        except (ValueError, IndexError):
+            return None
     
     def network_address(ip_cidr):
-        ip, mask_bits = ip_cidr.split('/')
-        mask_bits = int(mask_bits)
-        mask = (0xFFFFFFFF << (32 - mask_bits)) & 0xFFFFFFFF
-        return ip_to_int(ip) & mask
+        try:
+            ip, mask_bits = ip_cidr.split('/')
+            mask_bits = int(mask_bits)
+            if mask_bits < 0 or mask_bits > 32:
+                return None, None
+                
+            ip_int = ip_to_int(ip)
+            if ip_int is None:
+                return None, None
+                
+            mask = (0xFFFFFFFF << (32 - mask_bits)) & 0xFFFFFFFF
+            return ip_int & mask, mask
+        except (ValueError, IndexError):
+            return None, None
     
-    # Преобразуем IP клиента в integer
+    if not ip or not isinstance(ip, str):
+        return False
+    
     client_ip_int = ip_to_int(ip)
+    if client_ip_int is None:
+        return False
     
     for allowed in ALLOWED_IPS:
         if '/' in allowed:
-            # CIDR нотация
-            net_addr = network_address(allowed)
-            mask_bits = int(allowed.split('/')[1])
-            mask = (0xFFFFFFFF << (32 - mask_bits)) & 0xFFFFFFFF
-            
+            net_addr, mask = network_address(allowed)
+            if net_addr is None or mask is None:
+                continue
+                
             if (client_ip_int & mask) == net_addr:
                 return True
         else:
-            # Одиночный IP
             if ip == allowed:
                 return True
     
     return False
 
 def ip_whitelist(f):
-    """
-    Декоратор для проверки IP перед выполнением функции
-    """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Получаем IP клиента
         client_ip = request.remote_addr
         
-        # Проверяем заголовки прокси, если используется
         if request.headers.get('X-Forwarded-For'):
             client_ip = request.headers.get('X-Forwarded-For').split(',')[0].strip()
         elif request.headers.get('X-Real-IP'):
             client_ip = request.headers.get('X-Real-IP')
         
-        # Логируем попытку доступа
         info(f"Попытка доступа от IP: {client_ip}")
         
-        # Проверяем IP
         if not check_ip(client_ip):
             fatl(f"Отказано в доступе для IP: {client_ip}")
             if request.path.startswith('/api/'):
@@ -82,7 +97,6 @@ def ip_whitelist(f):
     
     return decorated_function
 
-# Применяем декоратор ко всем маршрутам
 @app.route("/")
 @ip_whitelist
 def index():
@@ -293,12 +307,9 @@ def editfile_save():
     except Exception as e:
         return f"Ошибка сохранения файла: {str(e)}"
 
-
 @app.errorhandler(403)
-@ip_whitelist
 def forbidden(e):
     return render_template('access_denied.html', ip=request.remote_addr), 403
-
 
 if __name__ == '__main__':
     info(f"Allowed IPs: {ALLOWED_IPS}")
