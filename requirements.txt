@@ -1,3 +1,4 @@
 flask
 termcolor
 requests
+telebot

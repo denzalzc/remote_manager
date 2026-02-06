@@ -1,7 +1,11 @@
 from flask import Flask, render_template, request, jsonify
 from termcolor import colored
-import subprocess, os
 from functools import wraps
+from telebot import TeleBot
+import subprocess, os
+import random
+import string
+
 
 def warn(text: str): print(colored(text, 'yellow'))
 def succ(text: str): print(colored(text, 'green'))
@@ -13,6 +17,37 @@ app = Flask(__name__)
 ALLOWED_IPS = {
     '213.156.210.18',
 }
+
+def gen_api_key():
+    with open('tg_key', 'r') as tg_key_file:
+        all_symbols = string.ascii_letters + string.digits + string.punctuation
+        random_key = "".join(random.choices(all_symbols, k=10))
+
+        bot_apikey, chat_id = tg_key_file.read().strip().split('/')
+        bot = TeleBot(bot_apikey)
+        bot.send_message(chat_id=chat_id, text=random_key)
+
+        return random_key
+    
+allowed_api_key = gen_api_key()
+print(allowed_api_key)
+
+
+
+def require_api_key(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        api_key = request.headers.get('X-API-Key')
+
+        print(api_key, allowed_api_key)
+        
+        if not(api_key) or not(api_key == allowed_api_key):
+            "Permission denied: Your IP is not whitelisted", 403
+        if api_key == allowed_api_key:
+            return f(*args, **kwargs)
+    return decorated_function
+
+
 
 def check_ip(ip):
     def ip_to_int(ip):
