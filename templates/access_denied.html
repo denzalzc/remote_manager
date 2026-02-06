@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+    <html>
+    <head>
+        <title>Access Denied</title>
+        <style>
+            body {
+                font-family: monospace;
+                background: #1e1e1e;
+                color: #d4d4d4;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+            }
+            .container {
+                text-align: center;
+                border: 2px solid #ff4444;
+                padding: 40px;
+                border-radius: 10px;
+                background: #2d2d30;
+            }
+            h1 {
+                color: #ff4444;
+            }
+            .ip {
+                font-family: monospace;
+                background: #3e3e42;
+                padding: 10px;
+                border-radius: 5px;
+                margin: 20px 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🚫 Access Denied</h1>
+            <p>Your IP address is not whitelisted.</p>
+            <div class="ip">Your IP: {{ ip }}</div>
+            <p>Contact administrator to add your IP to the whitelist.</p>
+        </div>
+    </body>
+    </html>

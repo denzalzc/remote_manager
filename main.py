@@ -1,20 +1,98 @@
 from flask import Flask, render_template, request, jsonify
 from termcolor import colored
 import subprocess, os
+from functools import wraps
 
 def warn(text: str): print(colored(text, 'yellow'))
 def succ(text: str): print(colored(text, 'green'))
 def fatl(text: str): print(colored(text, 'red'))
 def info(text: str): print(colored(text, 'blue'))
 
-
 app = Flask(__name__)
 
+# Белый список разрешенных IP-адресов
+ALLOWED_IPS = {
+    '127.0.0.1',  # localhost
+    '192.168.1.0/24',  # вся локальная сеть 192.168.1.x
+    '10.0.0.0/8',  # вся сеть 10.x.x.x
+    '172.16.0.0/12',  # вся сеть 172.16.0.0 - 172.31.255.255
+    '77.222.63.95',  # текущий IP
+    # Добавь свои IP-адреса здесь
+}
+
+def check_ip(ip):
+    """
+    Проверяет, находится ли IP в белом списке.
+    Поддерживает CIDR нотацию (например, 192.168.1.0/24)
+    """
+    def ip_to_int(ip):
+        parts = ip.split('.')
+        return (int(parts[0]) << 24) + (int(parts[1]) << 16) + (int(parts[2]) << 8) + int(parts[3])
+    
+    def network_address(ip_cidr):
+        ip, mask_bits = ip_cidr.split('/')
+        mask_bits = int(mask_bits)
+        mask = (0xFFFFFFFF << (32 - mask_bits)) & 0xFFFFFFFF
+        return ip_to_int(ip) & mask
+    
+    # Преобразуем IP клиента в integer
+    client_ip_int = ip_to_int(ip)
+    
+    for allowed in ALLOWED_IPS:
+        if '/' in allowed:
+            # CIDR нотация
+            net_addr = network_address(allowed)
+            mask_bits = int(allowed.split('/')[1])
+            mask = (0xFFFFFFFF << (32 - mask_bits)) & 0xFFFFFFFF
+            
+            if (client_ip_int & mask) == net_addr:
+                return True
+        else:
+            # Одиночный IP
+            if ip == allowed:
+                return True
+    
+    return False
+
+def ip_whitelist(f):
+    """
+    Декоратор для проверки IP перед выполнением функции
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Получаем IP клиента
+        client_ip = request.remote_addr
+        
+        # Проверяем заголовки прокси, если используется
+        if request.headers.get('X-Forwarded-For'):
+            client_ip = request.headers.get('X-Forwarded-For').split(',')[0].strip()
+        elif request.headers.get('X-Real-IP'):
+            client_ip = request.headers.get('X-Real-IP')
+        
+        # Логируем попытку доступа
+        info(f"Попытка доступа от IP: {client_ip}")
+        
+        # Проверяем IP
+        if not check_ip(client_ip):
+            fatl(f"Отказано в доступе для IP: {client_ip}")
+            if request.path.startswith('/api/'):
+                return "Permission denied: Your IP is not whitelisted", 403
+            else:
+                return render_template('access_denied.html', ip=client_ip), 403
+        
+        succ(f"Разрешен доступ для IP: {client_ip}")
+        return f(*args, **kwargs)
+    
+    return decorated_function
+
+# Применяем декоратор ко всем маршрутам
 @app.route("/")
+@ip_whitelist
 def index():
     return render_template('cli.html', start_path=os.getcwd())
 
 @app.route('/api/comm')
+@ip_whitelist
 def comm():
     command = request.args.get('text')
     if not command:
@@ -25,19 +103,16 @@ def comm():
             new_dir = command[3:].strip()
             current_dir = os.getcwd()
             
-
             if new_dir == "~":
                 new_dir = os.path.expanduser("~")
             elif new_dir.startswith("~/"):
                 new_dir = os.path.expanduser(new_dir)
             
-
             if os.path.isabs(new_dir):
                 target_dir = os.path.abspath(new_dir)
             else:
                 target_dir = os.path.abspath(os.path.join(current_dir, new_dir))
             
-
             target_dir = os.path.normpath(target_dir)
 
             if os.path.isdir(target_dir):
@@ -68,48 +143,43 @@ def comm():
         return f"Ошибка выполнения: {str(e)}"
 
 @app.route('/api/chdir')
+@ip_whitelist
 def chdir():
     path = request.args.get('text')
     if not path:
         path = os.getcwd()
     
     try:
-        # Обработка специальных путей
         if path == "~":
             path = os.path.expanduser("~")
         elif path.startswith("~/"):
             path = os.path.expanduser(path)
         
-        # Получаем абсолютный путь
         if not os.path.isabs(path):
             current_dir = os.getcwd()
             path = os.path.abspath(os.path.join(current_dir, path))
         
-        # Нормализуем путь
         path = os.path.normpath(path)
         
-        # Проверяем существует ли директория
         if os.path.isdir(path):
             os.chdir(path)
             files = os.listdir(path)
             
-            # Добавляем / к папкам
             files_with_type = []
             for f in files:
                 full_path = os.path.join(path, f)
                 if os.path.isdir(full_path):
-                    files_with_type.append(f + '/')  # Папки с / на конце
+                    files_with_type.append(f + '/') 
                 else:
-                    files_with_type.append(f)        # Файлы без /
+                    files_with_type.append(f)
             
-            # Сортируем: сначала папки, потом файлы
             dirs = [f for f in files_with_type if f.endswith('/')]
             files_list = [f for f in files_with_type if not f.endswith('/')]
             
             sorted_files = sorted(dirs) + sorted(files_list)
             
             return jsonify({
-                "current_path": os.getcwd(),  # Абсолютный путь
+                "current_path": os.getcwd(),
                 "files": sorted_files
             })
         else:
@@ -127,6 +197,7 @@ def chdir():
         })
 
 @app.route('/api/operonfiles')
+@ip_whitelist
 def operonfiles():
     filefullpath = request.args.get('filefullpath')
     operation = request.args.get('oper')
@@ -173,26 +244,23 @@ def operonfiles():
         return f"Ошибка выполнения операции: {str(e)}"
     
 @app.route('/api/editfile/open')
+@ip_whitelist
 def editfile_open():
     filefullpath = request.args.get('filefullpath')
     if not filefullpath:
         return "Ошибка: не указан путь к файлу"
     
     try:
-        # Получаем абсолютный путь
         if not os.path.isabs(filefullpath):
             current_dir = os.getcwd()
             filefullpath = os.path.abspath(os.path.join(current_dir, filefullpath))
         
-        # Проверяем существует ли файл
         if not os.path.exists(filefullpath):
             return f"Ошибка: файл '{filefullpath}' не существует"
         
-        # Проверяем что это файл, а не папка
         if os.path.isdir(filefullpath):
             return f"Ошибка: '{filefullpath}' это папка, а не файл"
         
-        # Читаем содержимое файла
         with open(filefullpath, 'r', encoding='utf-8') as f:
             content = f.read()
         
@@ -204,6 +272,7 @@ def editfile_open():
         return f"Ошибка открытия файла: {str(e)}"
 
 @app.route('/api/editfile/save')
+@ip_whitelist
 def editfile_save():
     filefullpath = request.args.get('filefullpath')
     content = request.args.get('content')
@@ -212,16 +281,13 @@ def editfile_save():
         return "Ошибка: не указаны необходимые параметры"
     
     try:
-        # Получаем абсолютный путь
         if not os.path.isabs(filefullpath):
             current_dir = os.getcwd()
             filefullpath = os.path.abspath(os.path.join(current_dir, filefullpath))
         
-        # Проверяем существует ли файл (если нет - создаем)
         if os.path.exists(filefullpath) and os.path.isdir(filefullpath):
             return f"Ошибка: '{filefullpath}' это папка, а не файл"
         
-        # Сохраняем содержимое файла
         with open(filefullpath, 'w', encoding='utf-8') as f:
             f.write(content)
         
@@ -230,4 +296,13 @@ def editfile_save():
     except Exception as e:
         return f"Ошибка сохранения файла: {str(e)}"
 
-app.run(host='77.222.63.95', port=5000, debug=True)
+
+@app.errorhandler(403)
+@ip_whitelist
+def forbidden(e):
+    return render_template('access_denied.html', ip=request.remote_addr), 403
+
+
+if __name__ == '__main__':
+    info(f"Allowed IPs: {ALLOWED_IPS}")
+    app.run(host='77.222.63.95', port=5000, debug=True)
