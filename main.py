@@ -19,7 +19,7 @@ ALLOWED_IPS = {
 }
 
 def gen_api_key():
-    with open('tg_key', 'r') as tg_key_file:
+    with open('tg_data', 'r') as tg_key_file:
         all_symbols = string.ascii_letters + string.digits + string.punctuation
         random_key = "".join(random.choices(all_symbols, k=10))
 
