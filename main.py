@@ -134,12 +134,15 @@ def ip_whitelist(f):
     
     return decorated_function
 
+
 @app.route("/")
+@require_api_key
 @ip_whitelist
 def index():
     return render_template('cli.html', start_path=os.getcwd())
 
 @app.route('/api/comm')
+@require_api_key
 @ip_whitelist
 def comm():
     command = request.args.get('text')
@@ -191,6 +194,7 @@ def comm():
         return f"Ошибка выполнения: {str(e)}"
 
 @app.route('/api/chdir')
+@require_api_key
 @ip_whitelist
 def chdir():
     path = request.args.get('text')
@@ -245,6 +249,7 @@ def chdir():
         })
 
 @app.route('/api/operonfiles')
+@require_api_key
 @ip_whitelist
 def operonfiles():
     filefullpath = request.args.get('filefullpath')
@@ -292,6 +297,7 @@ def operonfiles():
         return f"Ошибка выполнения операции: {str(e)}"
     
 @app.route('/api/editfile/open')
+@require_api_key
 @ip_whitelist
 def editfile_open():
     filefullpath = request.args.get('filefullpath')
@@ -320,6 +326,7 @@ def editfile_open():
         return f"Ошибка открытия файла: {str(e)}"
 
 @app.route('/api/editfile/save')
+@require_api_key
 @ip_whitelist
 def editfile_save():
     filefullpath = request.args.get('filefullpath')

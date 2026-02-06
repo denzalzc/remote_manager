@@ -320,6 +320,8 @@
         let commandHistory = [];
         let historyIndex = -1;
         let currentInput = '';
+        let apiKey = null;
+        const API_KEY_NAME = 'RSM_OTP';
 
         const consoleOutput = document.getElementById('consoleOutput');
         const consoleInput = document.getElementById('consoleInput');
@@ -336,9 +338,46 @@
         const saveFile = document.getElementById('saveFile');
         const autocompleteSuggestion = document.getElementById('autocompleteSuggestion');
 
+        // Получаем API ключ из LocalStorage или запрашиваем
+        function getApiKey() {
+            if (!apiKey) {
+                apiKey = localStorage.getItem(API_KEY_NAME);
+                if (!apiKey) {
+                    apiKey = prompt('🔐 Введите API ключ для доступа к серверу:');
+                    if (apiKey) {
+                        localStorage.setItem(API_KEY_NAME, apiKey);
+                    } else {
+                        alert('❌ API ключ не предоставлен. Доступ запрещен.');
+                        // Блокируем интерфейс
+                        consoleInput.disabled = true;
+                        pathInput.disabled = true;
+                        pathButton.disabled = true;
+                        backButton.disabled = true;
+                    }
+                }
+            }
+            return apiKey;
+        }
+
+        // Функция для получения заголовков с API ключом
+        function getHeaders() {
+            const key = getApiKey();
+            return key ? {
+                'E-SSH-LS': key
+            } : {};
+        }
+
         async function sendToFlask(command) {
             try {
-                const response = await fetch(`/api/comm?text=${encodeURIComponent(command)}`);
+                const headers = getHeaders();
+                if (!headers['E-SSH-LS']) {
+                    return '❌ Доступ запрещен: API ключ не предоставлен';
+                }
+
+                const response = await fetch(`/api/comm?text=${encodeURIComponent(command)}`, {
+                    headers: headers
+                });
+
                 if (response.ok) return await response.text();
                 else return `Ошибка сервера: ${response.status}`;
             } catch (error) {
@@ -348,7 +387,16 @@
 
         async function loadFiles(path) {
             try {
-                const response = await fetch(`/api/chdir?text=${encodeURIComponent(path)}`);
+                const headers = getHeaders();
+                if (!headers['E-SSH-LS']) {
+                    addToConsole('❌ Доступ запрещен: API ключ не предоставлен');
+                    return;
+                }
+
+                const response = await fetch(`/api/chdir?text=${encodeURIComponent(path)}`, {
+                    headers: headers
+                });
+
                 if (response.ok) {
                     const data = await response.json();
                     if (data.files && data.current_path) {
@@ -370,9 +418,18 @@
 
         async function fileOperation(filefullpath, operation, newName = null) {
             try {
+                const headers = getHeaders();
+                if (!headers['E-SSH-LS']) {
+                    return '❌ Доступ запрещен: API ключ не предоставлен';
+                }
+
                 let url = `/api/operonfiles?filefullpath=${encodeURIComponent(filefullpath)}&oper=${operation}`;
                 if (newName) url += `&newname=${encodeURIComponent(newName)}`;
-                const response = await fetch(url);
+
+                const response = await fetch(url, {
+                    headers: headers
+                });
+
                 if (response.ok) return await response.text();
                 else return `Ошибка сервера: ${response.status}`;
             } catch (error) {
@@ -382,7 +439,17 @@
 
         async function openFileForEditing(filefullpath) {
             try {
-                const response = await fetch(`/api/editfile/open?filefullpath=${encodeURIComponent(filefullpath)}`);
+                const headers = getHeaders();
+                if (!headers['E-SSH-LS']) {
+                    addToConsole('❌ Доступ запрещен: API ключ не предоставлен');
+                    return;
+                }
+
+                const response = await fetch(
+                `/api/editfile/open?filefullpath=${encodeURIComponent(filefullpath)}`, {
+                    headers: headers
+                });
+
                 if (response.ok) {
                     const content = await response.text();
                     currentEditingFile = filefullpath;
@@ -398,9 +465,16 @@
 
         async function saveFileContent(filefullpath, content) {
             try {
+                const headers = getHeaders();
+                if (!headers['E-SSH-LS']) {
+                    return '❌ Доступ запрещен: API ключ не предоставлен';
+                }
+
                 const response = await fetch(
-                    `/api/editfile/save?filefullpath=${encodeURIComponent(filefullpath)}&content=${encodeURIComponent(content)}`
-                    );
+                    `/api/editfile/save?filefullpath=${encodeURIComponent(filefullpath)}&content=${encodeURIComponent(content)}`, {
+                        headers: headers
+                    });
+
                 if (response.ok) {
                     return await response.text();
                 } else {
@@ -411,6 +485,7 @@
             }
         }
 
+        // Остальной код остается без изменений
         function renderFiles() {
             fileList.innerHTML = '';
             files.forEach(file => {
@@ -655,7 +730,11 @@
             }
         });
 
-        loadFiles(pathInput.value);
+        // При загрузке страницы запрашиваем API ключ если его нет
+        document.addEventListener('DOMContentLoaded', () => {
+            getApiKey();
+            loadFiles(pathInput.value);
+        });
     </script>
 </body>
 
