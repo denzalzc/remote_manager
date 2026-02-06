@@ -40,7 +40,7 @@ def require_api_key(f):
         api_key = request.headers.get('E-SSH-LS')
         info(request.headers)
         warn(f"API from user: {api_key}")
-        warn(f"API from server memory")
+        warn(f"API from server memory {allowed_api_key}")
         if not api_key or api_key != allowed_api_key:
             if request.path.startswith('/api/'):
                 return "Permission denied: You not passed check.", 403
@@ -137,7 +137,6 @@ def ip_whitelist(f):
 
 @app.route("/")
 @ip_whitelist
-@require_api_key
 def index():
     return render_template('cli.html', start_path=os.getcwd())
 
