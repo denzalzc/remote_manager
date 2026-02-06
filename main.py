@@ -38,6 +38,8 @@ def require_api_key(f):
     def decorated_function(*args, **kwargs):
 
         api_key = request.headers.get('E-SSH-LS')
+        warn(f"API from user: {api_key}")
+        warn(f"API from server memory")
         if not api_key or api_key != allowed_api_key:
             if request.path.startswith('/api/'):
                 return "Permission denied: You not passed check.", 403
