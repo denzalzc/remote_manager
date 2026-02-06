@@ -44,7 +44,7 @@ def chdir():
     return os.listdir(dir_path)
 
 @app.route('/api/operonfiles')
-def chdir():
+def oper_on_files():
     file_full_path = request.args.get('filefullpath')
     operation = request.args.get('oper')
 
