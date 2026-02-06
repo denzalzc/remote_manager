@@ -17,7 +17,8 @@ def index():
 @app.route('/api/comm')
 def comm():
     command = request.args.get('text')
-    
+    print(command.split(' '))
+
     try:
         result = subprocess.run(
             command.split(' '), 
