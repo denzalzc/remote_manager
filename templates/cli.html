@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="ru">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,37 +11,31 @@
             box-sizing: border-box;
             font-family: monospace;
         }
-
         body {
             background: #1e1e1e;
             color: #d4d4d4;
             height: 100vh;
             overflow: hidden;
         }
-
         .container {
             display: flex;
             height: 100%;
         }
-
         .panel {
             flex: 1;
             border: 1px solid #333;
             display: flex;
             flex-direction: column;
         }
-
         .header {
             background: #2d2d30;
             padding: 10px;
             border-bottom: 1px solid #3e3e42;
             font-weight: bold;
         }
-
         .console {
             background: #0e0e0e;
         }
-
         .console-output {
             flex: 1;
             padding: 15px;
@@ -50,18 +43,15 @@
             white-space: pre-wrap;
             font-size: 14px;
         }
-
         .console-input {
             display: flex;
             border-top: 1px solid #333;
             background: #0e0e0e;
         }
-
         .prompt {
             padding: 10px;
             background: #2d2d30;
         }
-
         .console-input input {
             flex: 1;
             background: transparent;
@@ -71,13 +61,37 @@
             font-size: 14px;
             outline: none;
         }
-
+        .path-container {
+            display: flex;
+            padding: 5px 10px;
+            background: #252526;
+            border-bottom: 1px solid #3e3e42;
+        }
+        .path-input {
+            flex: 1;
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            color: #d4d4d4;
+            padding: 5px 10px;
+            font-size: 14px;
+            outline: none;
+        }
+        .path-button {
+            background: #007acc;
+            border: 1px solid #007acc;
+            color: white;
+            padding: 5px 15px;
+            margin-left: 5px;
+            cursor: pointer;
+        }
+        .path-button:hover {
+            background: #0062a3;
+        }
         .file-list {
             flex: 1;
             overflow-y: auto;
             padding: 10px;
         }
-
         .file-item {
             padding: 8px;
             display: flex;
@@ -85,44 +99,37 @@
             cursor: pointer;
             border-radius: 3px;
         }
-
         .file-item:hover {
             background: #2a2d2e;
         }
-
         .file-item.selected {
             background: #37373d;
         }
-
         .file-icon {
             margin-right: 10px;
             width: 20px;
             text-align: center;
         }
-
         .context-menu {
             position: absolute;
             background: #2d2d30;
             border: 1px solid #3e3e42;
             display: none;
         }
-
         .context-item {
             padding: 8px 20px;
             cursor: pointer;
         }
-
         .context-item:hover {
             background: #3e3e42;
         }
     </style>
 </head>
-
 <body>
     <div class="container">
         <div class="panel console">
             <div class="header">КОНСОЛЬ</div>
-            <div id="consoleOutput" class="console-output">Добро пожаловать! Введите "help" для списка команд.</div>
+            <div id="consoleOutput" class="console-output">Добро пожаловать!</div>
             <div class="console-input">
                 <div class="prompt">$</div>
                 <input type="text" id="consoleInput" placeholder="Введите команду..." autofocus>
@@ -130,6 +137,10 @@
         </div>
         <div class="panel">
             <div class="header">ФАЙЛЫ</div>
+            <div class="path-container">
+                <input type="text" id="pathInput" class="path-input" value="{{ start_path }}">
+                <button id="pathButton" class="path-button">→</button>
+            </div>
             <div id="fileList" class="file-list"></div>
         </div>
     </div>
@@ -140,42 +151,14 @@
     </div>
 
     <script>
-        let files = [{
-                name: 'index.html',
-                type: 'file',
-                size: '1.2KB'
-            },
-            {
-                name: 'style.css',
-                type: 'file',
-                size: '0.8KB'
-            },
-            {
-                name: 'script.js',
-                type: 'file',
-                size: '2.1KB'
-            },
-            {
-                name: 'documents',
-                type: 'folder',
-                size: '4KB'
-            },
-            {
-                name: 'images',
-                type: 'folder',
-                size: '12KB'
-            },
-            {
-                name: 'README.md',
-                type: 'file',
-                size: '0.5KB'
-            }
-        ];
+        let files = [];
         let selectedFile = null;
         const consoleOutput = document.getElementById('consoleOutput');
         const consoleInput = document.getElementById('consoleInput');
         const fileList = document.getElementById('fileList');
         const contextMenu = document.getElementById('contextMenu');
+        const pathInput = document.getElementById('pathInput');
+        const pathButton = document.getElementById('pathButton');
 
         async function sendToFlask(command) {
             try {
@@ -191,6 +174,22 @@
             }
         }
 
+        async function loadFiles(path) {
+            try {
+                const response = await fetch(`/api/chdir/?text=${encodeURIComponent(path)}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    files = data.files || [];
+                    pathInput.value = data.current_path || path;
+                    renderFiles();
+                } else {
+                    addToConsole(`Ошибка загрузки файлов: ${response.status}`);
+                }
+            } catch (error) {
+                addToConsole(`Ошибка соединения: ${error.message}`);
+            }
+        }
+
         function renderFiles() {
             fileList.innerHTML = '';
             files.forEach(file => {
@@ -198,11 +197,19 @@
                 div.className = 'file-item';
                 div.dataset.name = file.name;
                 div.innerHTML = `
-            <div class="file-icon">${file.type === 'folder' ? '📁' : '📄'}</div>
-            <div style="flex:1">${file.name}</div>
-            <div>${file.size}</div>
-        `;
+                    <div class="file-icon">${file.type === 'directory' || file.type === 'folder' ? '📁' : '📄'}</div>
+                    <div style="flex:1">${file.name}</div>
+                    <div>${file.size || ''}</div>
+                `;
                 div.addEventListener('click', () => selectFile(file.name));
+                div.addEventListener('dblclick', () => {
+                    if (file.type === 'directory' || file.type === 'folder') {
+                        const newPath = pathInput.value.endsWith('/') ? 
+                            pathInput.value + file.name : 
+                            pathInput.value + '/' + file.name;
+                        loadFiles(newPath);
+                    }
+                });
                 div.addEventListener('contextmenu', (e) => showContextMenu(e, file.name));
                 fileList.appendChild(div);
             });
@@ -211,7 +218,7 @@
         function selectFile(name) {
             document.querySelectorAll('.file-item').forEach(el => {
                 el.classList.remove('selected');
-                if (el.dataset.name === name) {
+                if(el.dataset.name === name) {
                     el.classList.add('selected');
                     selectedFile = name;
                 }
@@ -232,22 +239,18 @@
 
         contextMenu.addEventListener('click', (e) => {
             const action = e.target.dataset.action;
-            if (!action || !selectedFile) return;
+            if(!action || !selectedFile) return;
 
-            if (action === 'delete') {
-                files = files.filter(f => f.name !== selectedFile);
-                renderFiles();
-                addToConsole(`Удален файл: ${selectedFile}`);
-            } else if (action === 'rename') {
+            if(action === 'delete') {
+                if(confirm(`Удалить ${selectedFile}?`)) {
+                    addToConsole(`Удаление файла: ${selectedFile}`);
+                }
+            } else if(action === 'rename') {
                 const newName = prompt('Новое имя:', selectedFile);
-                if (newName) {
-                    files.forEach(f => {
-                        if (f.name === selectedFile) f.name = newName;
-                    });
-                    renderFiles();
+                if(newName) {
                     addToConsole(`Переименован: ${selectedFile} → ${newName}`);
                 }
-            } else if (action === 'open') {
+            } else if(action === 'open') {
                 addToConsole(`Открыт файл: ${selectedFile}`);
             }
         });
@@ -265,21 +268,40 @@
             try {
                 const result = await sendToFlask(cmd);
                 addToConsole(result);
+                
+                if (cmd.startsWith('cd ') || cmd === 'ls' || cmd === 'dir') {
+                    await loadFiles(pathInput.value);
+                }
             } catch (error) {
                 addToConsole(`Ошибка выполнения команды: ${error.message}`);
             }
         }
 
         consoleInput.addEventListener('keyup', (e) => {
-            if (e.key === 'Enter') {
+            if(e.key === 'Enter') {
                 const cmd = consoleInput.value;
                 processCommand(cmd);
                 consoleInput.value = '';
             }
         });
 
-        renderFiles();
+        function changeDirectory() {
+            const path = pathInput.value.trim();
+            if (path) {
+                loadFiles(path);
+            }
+        }
+
+        pathInput.addEventListener('keyup', (e) => {
+            if(e.key === 'Enter') {
+                changeDirectory();
+            }
+        });
+
+        pathButton.addEventListener('click', changeDirectory);
+
+        // Загружаем файлы при старте
+        loadFiles(pathInput.value);
     </script>
 </body>
-
 </html>
