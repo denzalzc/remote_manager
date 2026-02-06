@@ -18,13 +18,28 @@ def index():
 def comm():
     command = request.args.get('text')
 
+    if command.startswith('cd '):
+        try:
+            new_dir = command[3:].strip()
+            if not os.path.isabs(new_dir):
+                current_dir = os.getcwd()
+                new_dir = os.path.join(current_dir, new_dir)
+            
+            if os.path.isdir(new_dir):
+                os.chdir(new_dir)
+                return f"Каталог изменен на: {new_dir}"
+            else:
+                return f"Ошибка: каталог '{new_dir}' не найден"
+        except Exception as e:
+            return f"Ошибка выполнения cd: {str(e)}"
+    
     try:
         result = subprocess.run(
-            command, 
+            command,
+            shell=True,
             capture_output=True, 
             text=True, 
-            encoding='utf-8',
-            shell=True
+            encoding='utf-8'
         )
         
         if result.returncode == 0:
