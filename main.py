@@ -32,23 +32,18 @@ def gen_api_key():
         return random_key
     
 allowed_api_key = gen_api_key()
-print(allowed_api_key)
-
-
 
 def require_api_key(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        api_key = request.headers.get('X-API-Key')
 
-        print(api_key, allowed_api_key)
-        
-        if not(api_key) or not(api_key == allowed_api_key):
+        api_key = request.headers.get('E-SSH-LS')
+        if not api_key or api_key != allowed_api_key:
             "Permission denied: Your IP is not whitelisted", 403
-        if api_key == allowed_api_key:
-            return f(*args, **kwargs)
+    
+        return f(*args, **kwargs)
+    
     return decorated_function
-
 
 
 def check_ip(ip):
@@ -136,14 +131,14 @@ def ip_whitelist(f):
 
 
 @app.route("/")
-@require_api_key
 @ip_whitelist
+@require_api_key
 def index():
     return render_template('cli.html', start_path=os.getcwd())
 
 @app.route('/api/comm')
-@require_api_key
 @ip_whitelist
+@require_api_key
 def comm():
     command = request.args.get('text')
     if not command:
@@ -194,8 +189,8 @@ def comm():
         return f"Ошибка выполнения: {str(e)}"
 
 @app.route('/api/chdir')
-@require_api_key
 @ip_whitelist
+@require_api_key
 def chdir():
     path = request.args.get('text')
     if not path:
@@ -249,8 +244,8 @@ def chdir():
         })
 
 @app.route('/api/operonfiles')
-@require_api_key
 @ip_whitelist
+@require_api_key
 def operonfiles():
     filefullpath = request.args.get('filefullpath')
     operation = request.args.get('oper')
@@ -297,8 +292,8 @@ def operonfiles():
         return f"Ошибка выполнения операции: {str(e)}"
     
 @app.route('/api/editfile/open')
-@require_api_key
 @ip_whitelist
+@require_api_key
 def editfile_open():
     filefullpath = request.args.get('filefullpath')
     if not filefullpath:
@@ -326,8 +321,8 @@ def editfile_open():
         return f"Ошибка открытия файла: {str(e)}"
 
 @app.route('/api/editfile/save')
-@require_api_key
 @ip_whitelist
+@require_api_key
 def editfile_save():
     filefullpath = request.args.get('filefullpath')
     content = request.args.get('content')
