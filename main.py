@@ -24,6 +24,7 @@ def gen_api_key():
         random_key = "".join(random.choices(all_symbols, k=10))
 
         bot_apikey, chat_id = tg_key_file.read().strip().split('/')
+        print(bot_apikey, chat_id)
         bot = TeleBot(bot_apikey)
         bot.send_message(chat_id=chat_id, text=random_key)
 
