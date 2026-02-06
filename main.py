@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 from termcolor import colored
 import subprocess, os
 
@@ -17,19 +17,35 @@ def index():
 @app.route('/api/comm')
 def comm():
     command = request.args.get('text')
-
+    if not command:
+        return "Ошибка: пустая команда"
+    
     if command.startswith('cd '):
         try:
             new_dir = command[3:].strip()
-            if not os.path.isabs(new_dir):
-                current_dir = os.getcwd()
-                new_dir = os.path.join(current_dir, new_dir)
+            current_dir = os.getcwd()
             
-            if os.path.isdir(new_dir):
-                os.chdir(new_dir)
-                return f"Каталог изменен на: {new_dir}"
+
+            if new_dir == "~":
+                new_dir = os.path.expanduser("~")
+            elif new_dir.startswith("~/"):
+                new_dir = os.path.expanduser(new_dir)
+            
+
+            if os.path.isabs(new_dir):
+                target_dir = os.path.abspath(new_dir)
             else:
-                return f"Ошибка: каталог '{new_dir}' не найден"
+                target_dir = os.path.abspath(os.path.join(current_dir, new_dir))
+            
+
+            target_dir = os.path.normpath(target_dir)
+
+            if os.path.isdir(target_dir):
+                os.chdir(target_dir)
+                return f"Каталог изменен на: {os.getcwd()}"
+            else:
+                return f"Ошибка: каталог '{target_dir}' не найден"
+                
         except Exception as e:
             return f"Ошибка выполнения cd: {str(e)}"
     
@@ -39,7 +55,8 @@ def comm():
             shell=True,
             capture_output=True, 
             text=True, 
-            encoding='utf-8'
+            encoding='utf-8',
+            cwd=os.getcwd()
         )
         
         if result.returncode == 0:
@@ -47,27 +64,108 @@ def comm():
         else:
             return f"Ошибка (код: {result.returncode}): {result.stderr}"
             
-    except FileNotFoundError as e:
-        cmd_name = command.split(' ')[0] if command else "Unknown"
-        return f"Ошибка: команда '{cmd_name}' не найдена"
     except Exception as e:
         return f"Ошибка выполнения: {str(e)}"
 
 @app.route('/api/chdir')
 def chdir():
-    dir_path = request.args.get('text')
-
-    return os.listdir(dir_path)
+    path = request.args.get('text')
+    if not path:
+        path = os.getcwd()
+    
+    try:
+        # Обработка специальных путей
+        if path == "~":
+            path = os.path.expanduser("~")
+        elif path.startswith("~/"):
+            path = os.path.expanduser(path)
+        
+        # Получаем абсолютный путь
+        if not os.path.isabs(path):
+            current_dir = os.getcwd()
+            path = os.path.abspath(os.path.join(current_dir, path))
+        
+        # Нормализуем путь
+        path = os.path.normpath(path)
+        
+        # Проверяем существует ли директория
+        if os.path.isdir(path):
+            os.chdir(path)
+            files = os.listdir(path)
+            
+            # Сортируем: сначала папки, потом файлы
+            dirs = [f for f in files if os.path.isdir(os.path.join(path, f))]
+            files_list = [f for f in files if os.path.isfile(os.path.join(path, f))]
+            
+            # Объединяем и сортируем
+            sorted_files = sorted(dirs) + sorted(files_list)
+            
+            return jsonify({
+                "current_path": os.getcwd(),  # Абсолютный путь
+                "files": sorted_files
+            })
+        else:
+            return jsonify({
+                "error": f"Каталог '{path}' не найден",
+                "current_path": os.getcwd(),
+                "files": []
+            })
+            
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "current_path": os.getcwd(),
+            "files": []
+        })
 
 @app.route('/api/operonfiles')
-def oper_on_files():
-    file_full_path = request.args.get('filefullpath')
+def operonfiles():
+    filefullpath = request.args.get('filefullpath')
     operation = request.args.get('oper')
-
-    info(file_full_path)
-    info(operation)
-
-    return 'kek'
+    newname = request.args.get('newname')
+    
+    try:
+        # Получаем абсолютный путь
+        if not os.path.isabs(filefullpath):
+            current_dir = os.getcwd()
+            filefullpath = os.path.abspath(os.path.join(current_dir, filefullpath))
+        
+        if operation == 'delete':
+            if os.path.exists(filefullpath):
+                if os.path.isdir(filefullpath):
+                    os.rmdir(filefullpath)
+                else:
+                    os.remove(filefullpath)
+                return f"Удалено: {filefullpath}"
+            else:
+                return f"Ошибка: файл или папка не существует"
+                
+        elif operation == 'rename':
+            if newname:
+                # Получаем абсолютный путь для нового имени
+                dir_path = os.path.dirname(filefullpath)
+                new_fullpath = os.path.abspath(os.path.join(dir_path, newname))
+                
+                if os.path.exists(filefullpath):
+                    os.rename(filefullpath, new_fullpath)
+                    return f"Переименовано: {filefullpath} -> {new_fullpath}"
+                else:
+                    return f"Ошибка: файл или папка не существует"
+            else:
+                return "Ошибка: не указано новое имя"
+                
+        elif operation == 'mkdir':
+            # Проверяем, существует ли уже такая папка
+            if os.path.exists(filefullpath):
+                return f"Ошибка: папка уже существует"
+            os.makedirs(filefullpath, exist_ok=True)
+            return f"Создана папка: {filefullpath}"
+            
+        else:
+            return f"Ошибка: неизвестная операция '{operation}'"
+            
+    except Exception as e:
+        return f"Ошибка выполнения операции: {str(e)}"
 
 
 app.run(host='77.222.63.95', port=5000, debug=True)
