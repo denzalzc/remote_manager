@@ -17,14 +17,14 @@ def index():
 @app.route('/api/comm')
 def comm():
     command = request.args.get('text')
-    print(command.split(' '))
 
     try:
         result = subprocess.run(
-            command.split(' '), 
+            command, 
             capture_output=True, 
             text=True, 
-            encoding='utf-8'
+            encoding='utf-8',
+            shell=True
         )
         
         if result.returncode == 0:
