@@ -212,12 +212,8 @@
         async function sendToFlask(command) {
             try {
                 const response = await fetch(`/api/comm?text=${encodeURIComponent(command)}`);
-                if (response.ok) {
-                    const data = await response.text();
-                    return data;
-                } else {
-                    return `Ошибка сервера: ${response.status}`;
-                }
+                if (response.ok) return await response.text();
+                else return `Ошибка сервера: ${response.status}`;
             } catch (error) {
                 return `Ошибка соединения: ${error.message}`;
             }
@@ -228,36 +224,15 @@
                 const response = await fetch(`/api/chdir?text=${encodeURIComponent(path)}`);
                 if (response.ok) {
                     const data = await response.json();
-
-                    // Проверяем формат ответа
                     if (data.files && data.current_path) {
-                        // Новый формат: {current_path: "...", files: [...]}
-                        files = data.files.map(fileName => {
-                            // Определяем тип (папка или файл)
-                            // Простая эвристика: если нет точки или заканчивается на / - это папка
-                            const isDirectory = !fileName.includes('.') || fileName.endsWith('/');
-                            return {
-                                name: fileName,
-                                type: isDirectory ? 'directory' : 'file',
-                                size: ''
-                            };
-                        });
-
-                        // Обновляем путь в строке с абсолютным путем
+                        files = data.files.map(fileName => ({
+                            name: fileName,
+                            type: !fileName.includes('.') ? 'directory' : 'file',
+                            size: ''
+                        }));
                         pathInput.value = data.current_path;
-                    } else if (Array.isArray(data)) {
-                        // Старый формат: просто массив файлов
-                        files = data.map(fileName => {
-                            const hasExtension = fileName.includes('.') && !fileName.startsWith('.');
-                            return {
-                                name: fileName,
-                                type: hasExtension ? 'file' : 'directory',
-                                size: ''
-                            };
-                        });
+                        renderFiles();
                     }
-
-                    renderFiles();
                 } else {
                     addToConsole(`Ошибка загрузки файлов: ${response.status}`);
                 }
@@ -269,17 +244,10 @@
         async function fileOperation(filefullpath, operation, newName = null) {
             try {
                 let url = `/api/operonfiles?filefullpath=${encodeURIComponent(filefullpath)}&oper=${operation}`;
-                if (newName) {
-                    url += `&newname=${encodeURIComponent(newName)}`;
-                }
-
+                if (newName) url += `&newname=${encodeURIComponent(newName)}`;
                 const response = await fetch(url);
-                if (response.ok) {
-                    const data = await response.text();
-                    return data;
-                } else {
-                    return `Ошибка сервера: ${response.status}`;
-                }
+                if (response.ok) return await response.text();
+                else return `Ошибка сервера: ${response.status}`;
             } catch (error) {
                 return `Ошибка соединения: ${error.message}`;
             }
@@ -291,26 +259,19 @@
                 const div = document.createElement('div');
                 div.className = 'file-item';
                 div.dataset.name = file.name;
-                div.innerHTML = `
-            <div class="file-icon">${file.type === 'directory' ? '📁' : '📄'}</div>
-            <div style="flex:1">${file.name}</div>
-            <div>${file.size || ''}</div>
-        `;
+                div.innerHTML =
+                    `<div class="file-icon">${file.type === 'directory' ? '📁' : '📄'}</div><div style="flex:1">${file.name}</div><div>${file.size || ''}</div>`;
                 div.addEventListener('click', () => selectFile(file.name));
                 div.addEventListener('dblclick', () => {
                     if (file.type === 'directory') {
-                        // Получаем абсолютный путь для новой директории
                         const currentPath = pathInput.value;
-                        let newPath;
-
-                        if (currentPath.endsWith('/')) {
-                            newPath = currentPath + file.name;
+                        const newPath = currentPath.endsWith('/') ? currentPath + file.name :
+                            currentPath + '/' + file.name;
+                        if (linkToFiles.checked) {
+                            processCommand(`cd ${newPath}`);
                         } else {
-                            newPath = currentPath + '/' + file.name;
+                            loadFiles(newPath);
                         }
-
-                        // Отправляем запрос для перехода в новую директорию
-                        loadFiles(newPath);
                     }
                 });
                 div.addEventListener('contextmenu', (e) => showContextMenu(e, file.name));
@@ -343,12 +304,9 @@
         contextMenu.addEventListener('click', async (e) => {
             const action = e.target.dataset.action;
             if (!action || !selectedFile) return;
-
             const currentPath = pathInput.value;
-            const fullPath = currentPath.endsWith('/') ?
-                currentPath + selectedFile :
-                currentPath + '/' + selectedFile;
-
+            const fullPath = currentPath.endsWith('/') ? currentPath + selectedFile : currentPath + '/' +
+                selectedFile;
             if (action === 'delete') {
                 if (confirm(`Удалить ${selectedFile}?`)) {
                     const result = await fileOperation(fullPath, 'delete');
@@ -365,8 +323,7 @@
             } else if (action === 'mkdir') {
                 const folderName = prompt('Имя новой папки:', 'new_folder');
                 if (folderName) {
-                    const newFolderPath = currentPath.endsWith('/') ?
-                        currentPath + folderName :
+                    const newFolderPath = currentPath.endsWith('/') ? currentPath + folderName :
                         currentPath + '/' + folderName;
                     const result = await fileOperation(newFolderPath, 'mkdir');
                     addToConsole(result);
@@ -382,31 +339,18 @@
 
         async function processCommand(cmd) {
             if (!cmd.trim()) return;
-
             addToConsole(`$ ${cmd}`);
-
             try {
                 const result = await sendToFlask(cmd);
                 addToConsole(result);
-
-                if (linkToFiles.checked) {
-                    // Обновляем файловый менеджер при командах, связанных с файлами
-                    const fileCommands = ['cd ', 'mkdir ', 'rm ', 'touch ', 'mv ', 'cp '];
-                    const shouldUpdate = fileCommands.some(command => cmd.trim().startsWith(command));
-
-                    if (shouldUpdate) {
-                        // Если команда cd, обновляем путь в строке
-                        if (cmd.trim().startsWith('cd ')) {
-                            // Извлекаем новый путь из ответа (сервер должен возвращать абсолютный путь)
-                            const match = result.match(/Каталог изменен на: (.+)/);
-                            if (match && match[1]) {
-                                pathInput.value = match[1];
-                            }
-                        }
-
-                        // Всегда обновляем список файлов после файловых операций
-                        loadFiles(pathInput.value);
+                if (linkToFiles.checked && (cmd.trim().startsWith('cd ') || cmd.trim().startsWith('mkdir ') || cmd
+                        .trim().startsWith('rm ') || cmd.trim().startsWith('touch ') || cmd.trim().startsWith(
+                        'mv ') || cmd.trim().startsWith('cp '))) {
+                    const match = result.match(/Каталог изменен на: (.+)/);
+                    if (match && match[1]) {
+                        pathInput.value = match[1];
                     }
+                    loadFiles(pathInput.value);
                 }
             } catch (error) {
                 addToConsole(`Ошибка выполнения команды: ${error.message}`);
@@ -435,8 +379,6 @@
         });
 
         pathButton.addEventListener('click', changeDirectory);
-
-        // Загружаем файлы при старте
         loadFiles(pathInput.value);
     </script>
 </body>
