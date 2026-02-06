@@ -39,9 +39,11 @@ def require_api_key(f):
 
         if not api_key or api_key != allowed_api_key:
             if request.path.startswith('/api/'):
+                fatl('Non-exist or wrong API key')
                 return "Permission denied: You not passed check.", 403
             return render_template('request_api_key.html'), 403
-    
+
+        succ('API KEY PASSED')
         return f(*args, **kwargs)
     
     return decorated_function
@@ -125,7 +127,7 @@ def ip_whitelist(f):
             else:
                 return render_template('access_denied.html', ip=client_ip), 403
         
-        succ(f"Разрешен доступ для IP: {client_ip}")
+        succ(f'IP Passed {client_ip}')
         return f(*args, **kwargs)
     
     return decorated_function
