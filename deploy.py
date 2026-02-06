@@ -43,3 +43,8 @@ def depends():
     print("[+][+][+] All python depends are installed")
 
     return True
+
+
+
+
+depends()
