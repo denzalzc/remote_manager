@@ -8,4 +8,4 @@ def hello_world():
     return render_template('cli.html')
 
 
-app.run(debug=True)
+app.run(host='77.222.63.95', port=5000, debug=True)
