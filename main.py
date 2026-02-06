@@ -74,34 +74,28 @@ def chdir():
         path = os.getcwd()
     
     try:
-        # Обработка специальных путей
         if path == "~":
             path = os.path.expanduser("~")
         elif path.startswith("~/"):
             path = os.path.expanduser(path)
         
-        # Получаем абсолютный путь
         if not os.path.isabs(path):
             current_dir = os.getcwd()
             path = os.path.abspath(os.path.join(current_dir, path))
         
-        # Нормализуем путь
         path = os.path.normpath(path)
         
-        # Проверяем существует ли директория
         if os.path.isdir(path):
             os.chdir(path)
             files = os.listdir(path)
             
-            # Сортируем: сначала папки, потом файлы
             dirs = [f for f in files if os.path.isdir(os.path.join(path, f))]
             files_list = [f for f in files if os.path.isfile(os.path.join(path, f))]
             
-            # Объединяем и сортируем
             sorted_files = sorted(dirs) + sorted(files_list)
             
             return jsonify({
-                "current_path": os.getcwd(),  # Абсолютный путь
+                "current_path": os.getcwd(),
                 "files": sorted_files
             })
         else:
@@ -125,7 +119,6 @@ def operonfiles():
     newname = request.args.get('newname')
     
     try:
-        # Получаем абсолютный путь
         if not os.path.isabs(filefullpath):
             current_dir = os.getcwd()
             filefullpath = os.path.abspath(os.path.join(current_dir, filefullpath))
@@ -142,7 +135,6 @@ def operonfiles():
                 
         elif operation == 'rename':
             if newname:
-                # Получаем абсолютный путь для нового имени
                 dir_path = os.path.dirname(filefullpath)
                 new_fullpath = os.path.abspath(os.path.join(dir_path, newname))
                 
@@ -155,7 +147,6 @@ def operonfiles():
                 return "Ошибка: не указано новое имя"
                 
         elif operation == 'mkdir':
-            # Проверяем, существует ли уже такая папка
             if os.path.exists(filefullpath):
                 return f"Ошибка: папка уже существует"
             os.makedirs(filefullpath, exist_ok=True)
@@ -166,6 +157,63 @@ def operonfiles():
             
     except Exception as e:
         return f"Ошибка выполнения операции: {str(e)}"
+    
+@app.route('/api/editfile/open')
+def editfile_open():
+    filefullpath = request.args.get('filefullpath')
+    if not filefullpath:
+        return "Ошибка: не указан путь к файлу"
+    
+    try:
+        # Получаем абсолютный путь
+        if not os.path.isabs(filefullpath):
+            current_dir = os.getcwd()
+            filefullpath = os.path.abspath(os.path.join(current_dir, filefullpath))
+        
+        # Проверяем существует ли файл
+        if not os.path.exists(filefullpath):
+            return f"Ошибка: файл '{filefullpath}' не существует"
+        
+        # Проверяем что это файл, а не папка
+        if os.path.isdir(filefullpath):
+            return f"Ошибка: '{filefullpath}' это папка, а не файл"
+        
+        # Читаем содержимое файла
+        with open(filefullpath, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        return content
+        
+    except UnicodeDecodeError:
+        return "Ошибка: файл не является текстовым (бинарный файл)"
+    except Exception as e:
+        return f"Ошибка открытия файла: {str(e)}"
 
+@app.route('/api/editfile/save')
+def editfile_save():
+    filefullpath = request.args.get('filefullpath')
+    content = request.args.get('content')
+    
+    if not filefullpath or content is None:
+        return "Ошибка: не указаны необходимые параметры"
+    
+    try:
+        # Получаем абсолютный путь
+        if not os.path.isabs(filefullpath):
+            current_dir = os.getcwd()
+            filefullpath = os.path.abspath(os.path.join(current_dir, filefullpath))
+        
+        # Проверяем существует ли файл (если нет - создаем)
+        if os.path.exists(filefullpath) and os.path.isdir(filefullpath):
+            return f"Ошибка: '{filefullpath}' это папка, а не файл"
+        
+        # Сохраняем содержимое файла
+        with open(filefullpath, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        return f"Файл сохранен: {filefullpath}"
+        
+    except Exception as e:
+        return f"Ошибка сохранения файла: {str(e)}"
 
 app.run(host='77.222.63.95', port=5000, debug=True)
