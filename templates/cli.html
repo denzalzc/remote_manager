@@ -176,7 +176,7 @@
 
         async function loadFiles(path) {
             try {
-                const response = await fetch(`/api/chdir/?text=${encodeURIComponent(path)}`);
+                const response = await fetch(`/api/chdir?text=${encodeURIComponent(path)}`);
                 if (response.ok) {
                     const data = await response.json();
                     files = data.files || [];

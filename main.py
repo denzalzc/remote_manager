@@ -33,9 +33,9 @@ def comm():
 
 @app.route('/api/chdir')
 def chdir():
-    command = request.args.get('text')
+    dir_path = request.args.get('text')
 
-    return 'kek'
+    return os.listdir(dir_path)
 
 
 app.run(host='77.222.63.95', port=5000, debug=True)
