@@ -12,16 +12,24 @@ def index():
 def comm():
     command = request.args.get('text')
     
-    result = subprocess.run(command.split(' '), capture_output=True, text=True, encoding='utf-8')
+    try:
+        result = subprocess.run(
+            command.split(' '), 
+            capture_output=True, 
+            text=True, 
+            encoding='utf-8'
+        )
+        
+        if result.returncode == 0:
+            return result.stdout if result.stdout else "Команда выполнена (нет вывода)"
+        else:
+            return f"Ошибка (код: {result.returncode}): {result.stderr}"
+            
+    except FileNotFoundError as e:
+        cmd_name = command.split(' ')[0] if command else "Unknown"
+        return f"Ошибка: команда '{cmd_name}' не найдена"
+    except Exception as e:
+        return f"Ошибка выполнения: {str(e)}"
 
-    if result.returncode == 0:
-        return result.stdout
-    else:
-        return result.stderr
-
-    print("Статус:", "Успешно" if result.returncode == 0 else "Ошибка")
-    print("Код возврата:", result.returncode)
-    print("Вывод:\n", result.stdout)
-    print("Ошибки:\n", result.stderr)
 
 app.run(host='77.222.63.95', port=5000, debug=True)
