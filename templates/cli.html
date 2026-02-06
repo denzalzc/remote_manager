@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,31 +12,37 @@
             box-sizing: border-box;
             font-family: monospace;
         }
+
         body {
             background: #1e1e1e;
             color: #d4d4d4;
             height: 100vh;
             overflow: hidden;
         }
+
         .container {
             display: flex;
             height: 100%;
         }
+
         .panel {
             flex: 1;
             border: 1px solid #333;
             display: flex;
             flex-direction: column;
         }
+
         .header {
             background: #2d2d30;
             padding: 10px;
             border-bottom: 1px solid #3e3e42;
             font-weight: bold;
         }
+
         .console {
             background: #0e0e0e;
         }
+
         .console-output {
             flex: 1;
             padding: 15px;
@@ -43,15 +50,18 @@
             white-space: pre-wrap;
             font-size: 14px;
         }
+
         .console-input {
             display: flex;
             border-top: 1px solid #333;
             background: #0e0e0e;
         }
+
         .prompt {
             padding: 10px;
             background: #2d2d30;
         }
+
         .console-input input {
             flex: 1;
             background: transparent;
@@ -61,11 +71,13 @@
             font-size: 14px;
             outline: none;
         }
+
         .file-list {
             flex: 1;
             overflow-y: auto;
             padding: 10px;
         }
+
         .file-item {
             padding: 8px;
             display: flex;
@@ -73,32 +85,39 @@
             cursor: pointer;
             border-radius: 3px;
         }
+
         .file-item:hover {
             background: #2a2d2e;
         }
+
         .file-item.selected {
             background: #37373d;
         }
+
         .file-icon {
             margin-right: 10px;
             width: 20px;
             text-align: center;
         }
+
         .context-menu {
             position: absolute;
             background: #2d2d30;
             border: 1px solid #3e3e42;
             display: none;
         }
+
         .context-item {
             padding: 8px 20px;
             cursor: pointer;
         }
+
         .context-item:hover {
             background: #3e3e42;
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="panel console">
@@ -121,20 +140,57 @@
     </div>
 
     <script>
-        let files = [
-            {name: 'index.html', type: 'file', size: '1.2KB'},
-            {name: 'style.css', type: 'file', size: '0.8KB'},
-            {name: 'script.js', type: 'file', size: '2.1KB'},
-            {name: 'documents', type: 'folder', size: '4KB'},
-            {name: 'images', type: 'folder', size: '12KB'},
-            {name: 'README.md', type: 'file', size: '0.5KB'}
+        let files = [{
+                name: 'index.html',
+                type: 'file',
+                size: '1.2KB'
+            },
+            {
+                name: 'style.css',
+                type: 'file',
+                size: '0.8KB'
+            },
+            {
+                name: 'script.js',
+                type: 'file',
+                size: '2.1KB'
+            },
+            {
+                name: 'documents',
+                type: 'folder',
+                size: '4KB'
+            },
+            {
+                name: 'images',
+                type: 'folder',
+                size: '12KB'
+            },
+            {
+                name: 'README.md',
+                type: 'file',
+                size: '0.5KB'
+            }
         ];
         let selectedFile = null;
         const consoleOutput = document.getElementById('consoleOutput');
         const consoleInput = document.getElementById('consoleInput');
         const fileList = document.getElementById('fileList');
         const contextMenu = document.getElementById('contextMenu');
-        
+
+        async function sendToFlask(command) {
+            try {
+                const response = await fetch(`/api/comm?text=${encodeURIComponent(command)}`);
+                if (response.ok) {
+                    const data = await response.text();
+                    return data;
+                } else {
+                    return `Ошибка сервера: ${response.status}`;
+                }
+            } catch (error) {
+                return `Ошибка соединения: ${error.message}`;
+            }
+        }
+
         function renderFiles() {
             fileList.innerHTML = '';
             files.forEach(file => {
@@ -142,26 +198,26 @@
                 div.className = 'file-item';
                 div.dataset.name = file.name;
                 div.innerHTML = `
-                    <div class="file-icon">${file.type === 'folder' ? '📁' : '📄'}</div>
-                    <div style="flex:1">${file.name}</div>
-                    <div>${file.size}</div>
-                `;
+            <div class="file-icon">${file.type === 'folder' ? '📁' : '📄'}</div>
+            <div style="flex:1">${file.name}</div>
+            <div>${file.size}</div>
+        `;
                 div.addEventListener('click', () => selectFile(file.name));
                 div.addEventListener('contextmenu', (e) => showContextMenu(e, file.name));
                 fileList.appendChild(div);
             });
         }
-        
+
         function selectFile(name) {
             document.querySelectorAll('.file-item').forEach(el => {
                 el.classList.remove('selected');
-                if(el.dataset.name === name) {
+                if (el.dataset.name === name) {
                     el.classList.add('selected');
                     selectedFile = name;
                 }
             });
         }
-        
+
         function showContextMenu(e, filename) {
             e.preventDefault();
             selectFile(filename);
@@ -169,74 +225,61 @@
             contextMenu.style.left = e.pageX + 'px';
             contextMenu.style.top = e.pageY + 'px';
         }
-        
+
         document.addEventListener('click', () => {
             contextMenu.style.display = 'none';
         });
-        
+
         contextMenu.addEventListener('click', (e) => {
             const action = e.target.dataset.action;
-            if(!action || !selectedFile) return;
-            
-            if(action === 'delete') {
+            if (!action || !selectedFile) return;
+
+            if (action === 'delete') {
                 files = files.filter(f => f.name !== selectedFile);
                 renderFiles();
                 addToConsole(`Удален файл: ${selectedFile}`);
-            } else if(action === 'rename') {
+            } else if (action === 'rename') {
                 const newName = prompt('Новое имя:', selectedFile);
-                if(newName) {
+                if (newName) {
                     files.forEach(f => {
-                        if(f.name === selectedFile) f.name = newName;
+                        if (f.name === selectedFile) f.name = newName;
                     });
                     renderFiles();
                     addToConsole(`Переименован: ${selectedFile} → ${newName}`);
                 }
-            } else if(action === 'open') {
+            } else if (action === 'open') {
                 addToConsole(`Открыт файл: ${selectedFile}`);
             }
         });
-        
+
         function addToConsole(text) {
             consoleOutput.innerHTML += `\n${text}`;
             consoleOutput.scrollTop = consoleOutput.scrollHeight;
         }
-        
-        function processCommand(cmd) {
-            const args = cmd.trim().split(' ');
-            const command = args[0].toLowerCase();
-            
-            switch(command) {
-                case 'help':
-                    addToConsole('Доступные команды: ls, clear, date, echo, help');
-                    break;
-                case 'ls':
-                    addToConsole('Содержимое текущей директории:');
-                    files.forEach(f => addToConsole(`${f.type === 'folder' ? '📁' : '📄'} ${f.name}`));
-                    break;
-                case 'clear':
-                    consoleOutput.innerHTML = '';
-                    break;
-                case 'date':
-                    addToConsole(new Date().toLocaleString());
-                    break;
-                case 'echo':
-                    addToConsole(args.slice(1).join(' '));
-                    break;
-                default:
-                    addToConsole(`Команда не найдена: ${command}. Введите "help" для справки.`);
+
+        async function processCommand(cmd) {
+            if (!cmd.trim()) return;
+
+            addToConsole(`$ ${cmd}`);
+
+            try {
+                const result = await sendToFlask(cmd);
+                addToConsole(result);
+            } catch (error) {
+                addToConsole(`Ошибка выполнения команды: ${error.message}`);
             }
         }
-        
+
         consoleInput.addEventListener('keyup', (e) => {
-            if(e.key === 'Enter') {
+            if (e.key === 'Enter') {
                 const cmd = consoleInput.value;
-                addToConsole('$ ' + cmd);
                 processCommand(cmd);
                 consoleInput.value = '';
             }
         });
-        
+
         renderFiles();
     </script>
 </body>
+
 </html>
