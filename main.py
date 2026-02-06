@@ -34,9 +34,9 @@ allowed_api_key = gen_api_key()
 def require_api_key(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-
+        info('Getting key')
         api_key = request.headers.get('E-SSH-LS') or request.args.get('svomqdpz_9_1_1')
-
+        info(f'Key |{api_key}|')
         if not api_key or api_key != allowed_api_key:
             if request.path.startswith('/api/'):
                 fatl('Non-exist or wrong API key')
