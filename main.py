@@ -20,11 +20,11 @@ ALLOWED_IPS = {
 
 def gen_api_key():
     with open('tg_data', 'r') as tg_key_file:
-        all_symbols = string.ascii_letters + string.digits + string.punctuation
+        all_symbols = string.ascii_letters + string.digits
         random_key = "".join(random.choices(all_symbols, k=10))
+        info(random_key)
 
         bot_apikey, chat_id = tg_key_file.read().strip().split('/')
-        print(bot_apikey, chat_id)
         bot = TeleBot(bot_apikey)
         bot.send_message(chat_id=chat_id, text=random_key)
 
