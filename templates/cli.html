@@ -41,6 +41,7 @@
 
         .console {
             background: #0e0e0e;
+            position: relative;
         }
 
         .console-options {
@@ -68,12 +69,14 @@
             overflow-y: auto;
             white-space: pre-wrap;
             font-size: 14px;
+            position: relative;
         }
 
         .console-input {
             display: flex;
             border-top: 1px solid #333;
             background: #0e0e0e;
+            position: relative;
         }
 
         .prompt {
@@ -89,6 +92,15 @@
             padding: 10px;
             font-size: 14px;
             outline: none;
+        }
+
+        .autocomplete-suggestion {
+            position: absolute;
+            left: 40px;
+            top: 10px;
+            color: #666;
+            pointer-events: none;
+            font-size: 14px;
         }
 
         .path-container {
@@ -267,6 +279,7 @@
             <div class="console-input">
                 <div class="prompt">$</div>
                 <input type="text" id="consoleInput" placeholder="Введите команду..." autofocus>
+                <div id="autocompleteSuggestion" class="autocomplete-suggestion"></div>
             </div>
         </div>
         <div class="panel">
@@ -304,6 +317,10 @@
         let files = [];
         let selectedFile = null;
         let currentEditingFile = null;
+        let commandHistory = [];
+        let historyIndex = -1;
+        let currentInput = '';
+
         const consoleOutput = document.getElementById('consoleOutput');
         const consoleInput = document.getElementById('consoleInput');
         const fileList = document.getElementById('fileList');
@@ -317,6 +334,7 @@
         const closeModal = document.getElementById('closeModal');
         const cancelEdit = document.getElementById('cancelEdit');
         const saveFile = document.getElementById('saveFile');
+        const autocompleteSuggestion = document.getElementById('autocompleteSuggestion');
 
         async function sendToFlask(command) {
             try {
@@ -503,9 +521,36 @@
             consoleOutput.scrollTop = consoleOutput.scrollHeight;
         }
 
+        function updateAutocomplete() {
+            const input = consoleInput.value;
+            if (!input) {
+                autocompleteSuggestion.textContent = '';
+                return;
+            }
+
+            const matchingCommand = commandHistory
+                .filter(cmd => cmd.startsWith(input))
+                .sort()
+                .shift();
+
+            if (matchingCommand && matchingCommand !== input) {
+                const remaining = matchingCommand.slice(input.length);
+                autocompleteSuggestion.textContent = remaining;
+            } else {
+                autocompleteSuggestion.textContent = '';
+            }
+        }
+
         async function processCommand(cmd) {
             if (!cmd.trim()) return;
+
             addToConsole(`$ ${cmd}`);
+
+            commandHistory.push(cmd);
+            historyIndex = commandHistory.length;
+            currentInput = '';
+            autocompleteSuggestion.textContent = '';
+
             try {
                 const result = await sendToFlask(cmd);
                 addToConsole(result);
@@ -528,6 +573,44 @@
                 const cmd = consoleInput.value;
                 processCommand(cmd);
                 consoleInput.value = '';
+            }
+            updateAutocomplete();
+        });
+
+        consoleInput.addEventListener('input', updateAutocomplete);
+
+        consoleInput.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    if (historyIndex === commandHistory.length) {
+                        currentInput = consoleInput.value;
+                    }
+                    historyIndex--;
+                    consoleInput.value = commandHistory[historyIndex];
+                    updateAutocomplete();
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    consoleInput.value = commandHistory[historyIndex];
+                    updateAutocomplete();
+                } else if (historyIndex === commandHistory.length - 1) {
+                    historyIndex = commandHistory.length;
+                    consoleInput.value = currentInput;
+                    updateAutocomplete();
+                }
+            } else if (e.key === 'ArrowRight' && autocompleteSuggestion.textContent) {
+                e.preventDefault();
+                consoleInput.value += autocompleteSuggestion.textContent;
+                autocompleteSuggestion.textContent = '';
+                consoleInput.setSelectionRange(consoleInput.value.length, consoleInput.value.length);
+            } else if (e.key === 'Tab' && autocompleteSuggestion.textContent) {
+                e.preventDefault();
+                consoleInput.value += autocompleteSuggestion.textContent;
+                autocompleteSuggestion.textContent = '';
+                consoleInput.setSelectionRange(consoleInput.value.length, consoleInput.value.length);
             }
         });
 
