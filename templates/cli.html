@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,31 +12,37 @@
             box-sizing: border-box;
             font-family: monospace;
         }
+
         body {
             background: #1e1e1e;
             color: #d4d4d4;
             height: 100vh;
             overflow: hidden;
         }
+
         .container {
             display: flex;
             height: 100%;
         }
+
         .panel {
             flex: 1;
             border: 1px solid #333;
             display: flex;
             flex-direction: column;
         }
+
         .header {
             background: #2d2d30;
             padding: 10px;
             border-bottom: 1px solid #3e3e42;
             font-weight: bold;
         }
+
         .console {
             background: #0e0e0e;
         }
+
         .console-output {
             flex: 1;
             padding: 15px;
@@ -43,15 +50,18 @@
             white-space: pre-wrap;
             font-size: 14px;
         }
+
         .console-input {
             display: flex;
             border-top: 1px solid #333;
             background: #0e0e0e;
         }
+
         .prompt {
             padding: 10px;
             background: #2d2d30;
         }
+
         .console-input input {
             flex: 1;
             background: transparent;
@@ -61,12 +71,14 @@
             font-size: 14px;
             outline: none;
         }
+
         .path-container {
             display: flex;
             padding: 5px 10px;
             background: #252526;
             border-bottom: 1px solid #3e3e42;
         }
+
         .path-input {
             flex: 1;
             background: #1e1e1e;
@@ -76,6 +88,7 @@
             font-size: 14px;
             outline: none;
         }
+
         .path-button {
             background: #007acc;
             border: 1px solid #007acc;
@@ -84,14 +97,17 @@
             margin-left: 5px;
             cursor: pointer;
         }
+
         .path-button:hover {
             background: #0062a3;
         }
+
         .file-list {
             flex: 1;
             overflow-y: auto;
             padding: 10px;
         }
+
         .file-item {
             padding: 8px;
             display: flex;
@@ -99,32 +115,39 @@
             cursor: pointer;
             border-radius: 3px;
         }
+
         .file-item:hover {
             background: #2a2d2e;
         }
+
         .file-item.selected {
             background: #37373d;
         }
+
         .file-icon {
             margin-right: 10px;
             width: 20px;
             text-align: center;
         }
+
         .context-menu {
             position: absolute;
             background: #2d2d30;
             border: 1px solid #3e3e42;
             display: none;
         }
+
         .context-item {
             padding: 8px 20px;
             cursor: pointer;
         }
+
         .context-item:hover {
             background: #3e3e42;
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="panel console">
@@ -156,7 +179,6 @@
         const consoleOutput = document.getElementById('consoleOutput');
         const consoleInput = document.getElementById('consoleInput');
         const fileList = document.getElementById('fileList');
-        const contextMenu = document.getElementById('contextMenu');
         const pathInput = document.getElementById('pathInput');
         const pathButton = document.getElementById('pathButton');
 
@@ -179,8 +201,20 @@
                 const response = await fetch(`/api/chdir?text=${encodeURIComponent(path)}`);
                 if (response.ok) {
                     const data = await response.json();
-                    files = data.files || [];
-                    pathInput.value = data.current_path || path;
+
+                    // Если сервер возвращает просто массив файлов
+                    if (Array.isArray(data)) {
+                        files = data.map(fileName => {
+                            // Простая проверка: если нет расширения, считаем папкой
+                            const hasExtension = fileName.includes('.') && !fileName.startsWith('.');
+                            return {
+                                name: fileName,
+                                type: hasExtension ? 'file' : 'directory',
+                                size: ''
+                            };
+                        });
+                    }
+
                     renderFiles();
                 } else {
                     addToConsole(`Ошибка загрузки файлов: ${response.status}`);
@@ -197,20 +231,19 @@
                 div.className = 'file-item';
                 div.dataset.name = file.name;
                 div.innerHTML = `
-                    <div class="file-icon">${file.type === 'directory' || file.type === 'folder' ? '📁' : '📄'}</div>
-                    <div style="flex:1">${file.name}</div>
-                    <div>${file.size || ''}</div>
-                `;
+            <div class="file-icon">${file.type === 'directory' ? '📁' : '📄'}</div>
+            <div style="flex:1">${file.name}</div>
+            <div>${file.size || ''}</div>
+        `;
                 div.addEventListener('click', () => selectFile(file.name));
                 div.addEventListener('dblclick', () => {
-                    if (file.type === 'directory' || file.type === 'folder') {
-                        const newPath = pathInput.value.endsWith('/') ? 
-                            pathInput.value + file.name : 
+                    if (file.type === 'directory') {
+                        const newPath = pathInput.value.endsWith('/') ?
+                            pathInput.value + file.name :
                             pathInput.value + '/' + file.name;
                         loadFiles(newPath);
                     }
                 });
-                div.addEventListener('contextmenu', (e) => showContextMenu(e, file.name));
                 fileList.appendChild(div);
             });
         }
@@ -218,42 +251,12 @@
         function selectFile(name) {
             document.querySelectorAll('.file-item').forEach(el => {
                 el.classList.remove('selected');
-                if(el.dataset.name === name) {
+                if (el.dataset.name === name) {
                     el.classList.add('selected');
                     selectedFile = name;
                 }
             });
         }
-
-        function showContextMenu(e, filename) {
-            e.preventDefault();
-            selectFile(filename);
-            contextMenu.style.display = 'block';
-            contextMenu.style.left = e.pageX + 'px';
-            contextMenu.style.top = e.pageY + 'px';
-        }
-
-        document.addEventListener('click', () => {
-            contextMenu.style.display = 'none';
-        });
-
-        contextMenu.addEventListener('click', (e) => {
-            const action = e.target.dataset.action;
-            if(!action || !selectedFile) return;
-
-            if(action === 'delete') {
-                if(confirm(`Удалить ${selectedFile}?`)) {
-                    addToConsole(`Удаление файла: ${selectedFile}`);
-                }
-            } else if(action === 'rename') {
-                const newName = prompt('Новое имя:', selectedFile);
-                if(newName) {
-                    addToConsole(`Переименован: ${selectedFile} → ${newName}`);
-                }
-            } else if(action === 'open') {
-                addToConsole(`Открыт файл: ${selectedFile}`);
-            }
-        });
 
         function addToConsole(text) {
             consoleOutput.innerHTML += `\n${text}`;
@@ -268,9 +271,12 @@
             try {
                 const result = await sendToFlask(cmd);
                 addToConsole(result);
-                
-                if (cmd.startsWith('cd ') || cmd === 'ls' || cmd === 'dir') {
-                    await loadFiles(pathInput.value);
+
+                // Обновляем список файлов только при команде cd
+                if (cmd.trim().startsWith('cd ')) {
+                    const path = cmd.trim().substring(3).trim();
+                    loadFiles(path);
+                    pathInput.value = path;
                 }
             } catch (error) {
                 addToConsole(`Ошибка выполнения команды: ${error.message}`);
@@ -278,7 +284,7 @@
         }
 
         consoleInput.addEventListener('keyup', (e) => {
-            if(e.key === 'Enter') {
+            if (e.key === 'Enter') {
                 const cmd = consoleInput.value;
                 processCommand(cmd);
                 consoleInput.value = '';
@@ -293,7 +299,7 @@
         }
 
         pathInput.addEventListener('keyup', (e) => {
-            if(e.key === 'Enter') {
+            if (e.key === 'Enter') {
                 changeDirectory();
             }
         });
@@ -302,6 +308,13 @@
 
         // Загружаем файлы при старте
         loadFiles(pathInput.value);
+
+        // Удаляем контекстное меню из DOM, так как оно не нужно
+        const contextMenu = document.getElementById('contextMenu');
+        if (contextMenu) {
+            contextMenu.remove();
+        }
     </script>
 </body>
+
 </html>
