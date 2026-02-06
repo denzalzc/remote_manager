@@ -2,7 +2,7 @@ import os, subprocess, sys
 
 
 def depends():
-    os.system('touch td_data')
+    subprocess.run('touch td_data', shell=True)
 
     try:
         python_version = subprocess.check_output(['python3', '--version'], stderr=subprocess.STDOUT).decode()
