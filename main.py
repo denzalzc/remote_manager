@@ -133,6 +133,7 @@ def ip_whitelist(f):
 
 @app.route("/")
 @ip_whitelist
+@require_api_key
 def index():
     return render_template('cli.html', start_path=os.getcwd())
 
